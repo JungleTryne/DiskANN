@@ -14,6 +14,7 @@
 #include <iterator>
 #include <map>
 #include <numeric>
+#include <ann_exception.h>
 #include <omp.h>
 #include <random>
 #include <set>
@@ -142,6 +143,87 @@ namespace diskann {
     diskann::cout << "Number of frozen points = " << _num_frozen_pts
                   << std::endl;
     load_aligned_bin<T>(std::string(filename), _data, _nd, _dim, _aligned_dim);
+
+    if (nd > 0) {
+      if (_nd >= nd)
+        _nd = nd;  // Consider the first _nd points and ignore the rest.
+      else {
+        std::stringstream stream;
+        stream << "ERROR: Driver requests loading " << _nd << " points,"
+               << "but file has fewer (" << nd << ") points" << std::endl;
+        diskann::cerr << stream.str() << std::endl;
+        throw diskann::ANNException(stream.str(), -1, __FUNCSIG__, __FILE__,
+                                    __LINE__);
+      }
+    }
+
+    _max_points = (max_points > 0) ? max_points : _nd;
+    if (_max_points < _nd) {
+      std::stringstream stream;
+      stream << "ERROR: max_points must be >= data size; max_points: "
+             << _max_points << "  n: " << _nd << std::endl;
+      diskann::cerr << stream.str() << std::endl;
+      throw diskann::ANNException(stream.str(), -1, __FUNCSIG__, __FILE__,
+                                  __LINE__);
+    }
+
+    // Allocate space for max points and frozen points,
+    // and add frozen points at the end of the array
+    if (_num_frozen_pts > 0) {
+      auto temp = _data;
+      _data = (T *) realloc(
+          _data, (_max_points + _num_frozen_pts) * _aligned_dim * sizeof(T));
+      if (_data == nullptr) {
+        free(temp);
+        diskann::cout << "Realloc failed, killing programme" << std::endl;
+        throw diskann::ANNException("Realloc failed", -1, __FUNCSIG__, __FILE__,
+                                    __LINE__);
+      }
+    }
+
+    this->_distance = ::get_distance_function<T>(m);
+    _locks = std::vector<std::mutex>(_max_points + _num_frozen_pts);
+    _width = 0;
+  }
+
+  template<typename T, typename TagT>
+  Index<T, TagT>::Index(Metric m, const T* input_data, 
+                        const uint32_t num_of_points, const uint32_t dim,
+                        const size_t max_points, const size_t nd,
+                        const size_t num_frozen_pts,
+                        const bool   enable_tags,
+                        const bool   store_data,
+                        const bool   support_eager_delete)
+  : _metric(m), _num_frozen_pts(num_frozen_pts), _has_built(false),
+        _width(0), _can_delete(false), _eager_done(true), _lazy_done(true),
+        _compacted_order(true), _enable_tags(enable_tags),
+        _consolidated_order(true), _support_eager_delete(support_eager_delete),
+        _store_data(store_data) {
+
+    diskann::cout << "Number of frozen points = " << _num_frozen_pts
+                  << std::endl;
+    
+    _nd = num_of_points;
+    _dim = dim;
+    _aligned_dim = ROUND_UP(dim, 8);
+
+    size_t allocSize = _nd * _aligned_dim * sizeof(T);
+
+    diskann::cout << "allocSize: " << allocSize << std::endl;
+    alloc_aligned(((void**) &_data), allocSize, 8 * sizeof(T));
+
+    if (!_data) {
+      diskann::cerr << "Allocation failed" << std::endl;
+      throw diskann::ANNException("Alloc failed " + std::to_string(allocSize), -1, __FUNCSIG__, __FILE__,
+                                    __LINE__);
+    }
+
+    for (size_t i = 0; i < num_of_points; i++) {
+      memcpy((char*) (_data + i * _aligned_dim), &input_data[i * dim], dim * sizeof(T));
+      memset(_data + i * _aligned_dim + dim, 0, (_aligned_dim - dim) * sizeof(T));
+    }
+
+    // load_aligned_bin<T>(std::string(filename), _data, _nd, _dim, _aligned_dim);
 
     if (nd > 0) {
       if (_nd >= nd)

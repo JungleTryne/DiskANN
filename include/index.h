@@ -33,6 +33,15 @@ namespace diskann {
                             const bool   enable_tags = false,
                             const bool   store_data = true,
                             const bool   support_eager_delete = false);
+
+    DISKANN_DLLEXPORT Index(Metric m, const T* input_data, 
+                            const uint32_t num_of_points, const uint32_t dim,
+                            const size_t max_points = 0, const size_t nd = 0,
+                            const size_t num_frozen_pts = 0,
+                            const bool   enable_tags = false,
+                            const bool   store_data = true,
+                            const bool   support_eager_delete = false);
+
     DISKANN_DLLEXPORT ~Index();
 
     // checks if data is consolidated, saves graph, metadata and associated
@@ -104,7 +113,7 @@ namespace diskann {
                                                  size_t L, unsigned *indices);
 
     /*  Internals of the library */
-   protected:
+   // protected:
     typedef std::vector<SimpleNeighbor>        vecNgh;
     typedef std::vector<std::vector<unsigned>> CompactGraph;
     CompactGraph                               _final_graph;
@@ -166,7 +175,7 @@ namespace diskann {
     // Returns number of live points left after consolidation
     size_t consolidate_deletes(const Parameters &parameters);
 
-   private:
+   // private:
     Metric       _metric = diskann::L2;
     size_t       _dim;
     size_t       _aligned_dim;

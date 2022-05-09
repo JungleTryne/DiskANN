@@ -340,7 +340,7 @@ namespace diskann {
     float inner_product(const T *a, const T *b, unsigned size) const {
       float result = 0;
 #ifdef __GNUC__
-#ifdef __AVX__
+#ifdef __SSE2__
 #define AVX_DOT(addr1, addr2, dest, tmp1, tmp2) \
   tmp1 = _mm256_loadu_ps(addr1);                \
   tmp2 = _mm256_loadu_ps(addr2);                \
@@ -373,7 +373,7 @@ namespace diskann {
                unpack[5] + unpack[6] + unpack[7];
 
 #else
-#ifdef __SSE2__
+#ifdef __AVX__
 #define SSE_DOT(addr1, addr2, dest, tmp1, tmp2) \
   tmp1 = _mm128_loadu_ps(addr1);                \
   tmp2 = _mm128_loadu_ps(addr2);                \
@@ -454,7 +454,7 @@ namespace diskann {
     float norm(const T *a, unsigned size) const {
       float result = 0;
 #ifdef __GNUC__
-#ifdef __AVX__
+#ifdef __SSE2__
 #define AVX_L2NORM(addr, dest, tmp) \
   tmp = _mm256_loadu_ps(addr);      \
   tmp = _mm256_mul_ps(tmp, tmp);    \
@@ -481,7 +481,7 @@ namespace diskann {
       result = unpack[0] + unpack[1] + unpack[2] + unpack[3] + unpack[4] +
                unpack[5] + unpack[6] + unpack[7];
 #else
-#ifdef __SSE2__
+#ifdef __AVX__
 #define SSE_L2NORM(addr, dest, tmp) \
   tmp = _mm128_loadu_ps(addr);      \
   tmp = _mm128_mul_ps(tmp, tmp);    \
